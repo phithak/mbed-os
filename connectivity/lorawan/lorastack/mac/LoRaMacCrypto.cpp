@@ -31,6 +31,15 @@
 #include "system/lorawan_data_structures.h"
 #include "mbedtls/platform.h"
 
+// AES key size configurations & function trigger for experiments
+#include "exp_trigger.h"
+#ifdef EXPERIMENT_AES_KEY_SIZE_256
+uint8_t key256[32] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
+uint32_t key256_length = 256;
+#elif EXPERIMENT_AES_KEY_SIZE_192
+uint8_t key192[24] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
+uint32_t key192_length = 192;
+#endif
 
 #if defined(MBEDTLS_CMAC_C) && defined(MBEDTLS_AES_C) && defined(MBEDTLS_CIPHER_C)
 
@@ -78,7 +87,13 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
 
     mbedtls_cipher_init(aes_cmac_ctx);
 
+#ifdef EXPERIMENT_AES_KEY_SIZE_256
+    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_256_ECB);
+#elif EXPERIMENT_AES_KEY_SIZE_192
+    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_192_ECB);
+#else
     const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB);
+#endif
 
     if (NULL != cipher_info) {
         ret = mbedtls_cipher_setup(aes_cmac_ctx, cipher_info);
@@ -86,7 +101,13 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
             goto exit;
         }
 
+#ifdef EXPERIMENT_AES_KEY_SIZE_256
+        ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key256, key256_length);
+#elif EXPERIMENT_AES_KEY_SIZE_192
+        ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key192, key192_length);
+#else
         ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key, key_length);
+#endif
         if (0 != ret) {
             goto exit;
         }
@@ -131,7 +152,13 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
     uint8_t s_block[16] = {};
 
     mbedtls_aes_init(&aes_ctx);
+#ifdef EXPERIMENT_AES_KEY_SIZE_256
+    ret = mbedtls_aes_setkey_enc(&aes_ctx, key256, key256_length);
+#elif EXPERIMENT_AES_KEY_SIZE_192
+    ret = mbedtls_aes_setkey_enc(&aes_ctx, key192, key192_length);
+#else
     ret = mbedtls_aes_setkey_enc(&aes_ctx, key, key_length);
+#endif
     if (0 != ret) {
         goto exit;
     }
@@ -200,7 +227,13 @@ int LoRaMacCrypto::compute_join_frame_mic(const uint8_t *buffer, uint16_t size,
     int ret = 0;
 
     mbedtls_cipher_init(aes_cmac_ctx);
+#ifdef EXPERIMENT_AES_KEY_SIZE_256
+    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_256_ECB);
+#elif EXPERIMENT_AES_KEY_SIZE_192
+    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_192_ECB);
+#else
     const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB);
+#endif
 
     if (NULL != cipher_info) {
         ret = mbedtls_cipher_setup(aes_cmac_ctx, cipher_info);
@@ -208,7 +241,13 @@ int LoRaMacCrypto::compute_join_frame_mic(const uint8_t *buffer, uint16_t size,
             goto exit;
         }
 
+#ifdef EXPERIMENT_AES_KEY_SIZE_256
+        ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key256, key256_length);
+#elif EXPERIMENT_AES_KEY_SIZE_192
+        ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key192, key192_length);
+#else
         ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key, key_length);
+#endif
         if (0 != ret) {
             goto exit;
         }
