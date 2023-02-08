@@ -173,6 +173,7 @@ add_subdirectory(rtos)
 add_subdirectory(storage)
 add_subdirectory(events)
 add_subdirectory(connectivity)
+add_subdirectory(joulescope)
 
 # The directories below contain optional target libraries
 add_subdirectory(drivers/device_key EXCLUDE_FROM_ALL)
