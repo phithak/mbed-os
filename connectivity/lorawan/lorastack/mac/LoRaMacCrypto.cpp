@@ -68,6 +68,7 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
                                uint32_t address, uint8_t dir, uint32_t seq_counter,
                                uint32_t *mic)
 {
+    printf("enter compute_mic()\n");
 #ifdef TRIGGER_COMPUTE_MIC
     if (!dir) {
         js_trig_up();
@@ -149,6 +150,7 @@ exit:
         js_trig_down();
     }
 #endif
+    printf("exit compute_mic()\n");
     return ret;
 }
 
@@ -157,6 +159,7 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
                                    uint32_t address, uint8_t dir, uint32_t seq_counter,
                                    uint8_t *enc_buffer)
 {
+    printf("enter encrypt_payload()\n");
 #ifdef TRIGGER_ENCRYPT_PAYLOAD
     if (!dir) {
         js_trig_up();
@@ -230,6 +233,7 @@ exit:
         js_trig_down();
     }
 #endif
+    printf("exit encrypt_payload()\n");
     return ret;
 }
 
