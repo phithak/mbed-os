@@ -31,6 +31,9 @@
 #include "system/lorawan_data_structures.h"
 #include "mbedtls/platform.h"
 
+// JouleScope
+#include "joulescope/joulescope_debug.h"
+
 // AES key size configurations & function trigger for experiments
 #include "exp_trigger.h"
 #ifdef EXPERIMENT_AES_KEY_SIZE_256
@@ -65,6 +68,11 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
                                uint32_t address, uint8_t dir, uint32_t seq_counter,
                                uint32_t *mic)
 {
+#ifdef TRIGGER_COMPUTE_MIC
+    if (!dir) {
+        js_trig_up();
+    }
+#endif
     uint8_t computed_mic[16] = {};
     uint8_t mic_block_b0[16] = {};
     int ret = 0;
@@ -136,6 +144,11 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
 
 exit:
     mbedtls_cipher_free(aes_cmac_ctx);
+#ifdef TRIGGER_COMPUTE_MIC
+    if (!dir) {
+        js_trig_down();
+    }
+#endif
     return ret;
 }
 
@@ -144,6 +157,11 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
                                    uint32_t address, uint8_t dir, uint32_t seq_counter,
                                    uint8_t *enc_buffer)
 {
+#ifdef TRIGGER_ENCRYPT_PAYLOAD
+    if (!dir) {
+        js_trig_up();
+    }
+#endif
     uint16_t i;
     uint8_t bufferIndex = 0;
     uint16_t ctr = 1;
@@ -207,6 +225,11 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
 
 exit:
     mbedtls_aes_free(&aes_ctx);
+#ifdef TRIGGER_ENCRYPT_PAYLOAD
+    if (!dir) {
+        js_trig_down();
+    }
+#endif
     return ret;
 }
 
