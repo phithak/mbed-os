@@ -34,15 +34,28 @@
 // JouleScope
 #include "joulescope/joulescope_debug.h"
 
-// AES key size configurations & function trigger for experiments
-#include "exp_trigger.h"
-#ifdef EXPERIMENT_AES_KEY_SIZE_256
+// External variables from main.cpp
+extern int exp_func;        // 'c' = compute_mic(), 'e' = encrypt_payload()
+extern int key_size;        // 128, 192 or 256
+extern int msg_sent_count;  // message counter
+
+// Additional AES key size configurations
 uint8_t key256[32] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
 uint32_t key256_length = 256;
-#elif EXPERIMENT_AES_KEY_SIZE_192
 uint8_t key192[24] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
 uint32_t key192_length = 192;
-#endif
+
+// Detect MBEDTLS parameters from key_size
+mbedtls_cipher_type_t detect_mbedtls_cipher(int func_key_size) {
+    switch (func_key_size) {
+        case 256:
+            return MBEDTLS_CIPHER_AES_256_ECB;
+        case 192:
+            return MBEDTLS_CIPHER_AES_192_ECB;
+        default:
+            return MBEDTLS_CIPHER_AES_128_ECB;
+    }
+}
 
 #if defined(MBEDTLS_CMAC_C) && defined(MBEDTLS_AES_C) && defined(MBEDTLS_CIPHER_C)
 
@@ -69,11 +82,10 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
                                uint32_t *mic)
 {
     printf("enter compute_mic()\n");
-#ifdef TRIGGER_COMPUTE_MIC
-    if (!dir) {
+    if ((exp_func == 'c') && (!dir)) {
         js_trig_up();
     }
-#endif
+
     uint8_t computed_mic[16] = {};
     uint8_t mic_block_b0[16] = {};
     int ret = 0;
@@ -96,13 +108,8 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
 
     mbedtls_cipher_init(aes_cmac_ctx);
 
-#ifdef EXPERIMENT_AES_KEY_SIZE_256
-    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_256_ECB);
-#elif EXPERIMENT_AES_KEY_SIZE_192
-    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_192_ECB);
-#else
-    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB);
-#endif
+    // depend on key_size
+    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(detect_mbedtls_cipher(key_size));
 
     if (NULL != cipher_info) {
         ret = mbedtls_cipher_setup(aes_cmac_ctx, cipher_info);
@@ -110,13 +117,14 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
             goto exit;
         }
 
-#ifdef EXPERIMENT_AES_KEY_SIZE_256
-        ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key256, key256_length);
-#elif EXPERIMENT_AES_KEY_SIZE_192
-        ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key192, key192_length);
-#else
-        ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key, key_length);
-#endif
+        if (key_size == 256) {
+            ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key256, key256_length);
+        } else if (key_size == 192) {
+            ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key192, key192_length);
+        } else {
+            ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key, key_length);
+        }
+
         if (0 != ret) {
             goto exit;
         }
@@ -145,11 +153,10 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
 
 exit:
     mbedtls_cipher_free(aes_cmac_ctx);
-#ifdef TRIGGER_COMPUTE_MIC
-    if (!dir) {
+
+    if ((exp_func == 'c') && (!dir)) {
         js_trig_down();
     }
-#endif
     printf("exit compute_mic()\n");
     return ret;
 }
@@ -160,11 +167,10 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
                                    uint8_t *enc_buffer)
 {
     printf("enter encrypt_payload()\n");
-#ifdef TRIGGER_ENCRYPT_PAYLOAD
-    if (!dir) {
+    if ((exp_func == 'e') && (!dir)) {
         js_trig_up();
     }
-#endif
+
     uint16_t i;
     uint8_t bufferIndex = 0;
     uint16_t ctr = 1;
@@ -173,13 +179,14 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
     uint8_t s_block[16] = {};
 
     mbedtls_aes_init(&aes_ctx);
-#ifdef EXPERIMENT_AES_KEY_SIZE_256
-    ret = mbedtls_aes_setkey_enc(&aes_ctx, key256, key256_length);
-#elif EXPERIMENT_AES_KEY_SIZE_192
-    ret = mbedtls_aes_setkey_enc(&aes_ctx, key192, key192_length);
-#else
-    ret = mbedtls_aes_setkey_enc(&aes_ctx, key, key_length);
-#endif
+    if (key_size == 256) {
+        ret = mbedtls_aes_setkey_enc(&aes_ctx, key256, key256_length);
+    } else if (key_size == 192) {
+        ret = mbedtls_aes_setkey_enc(&aes_ctx, key192, key192_length);
+    } else {
+        ret = mbedtls_aes_setkey_enc(&aes_ctx, key, key_length);
+    }
+
     if (0 != ret) {
         goto exit;
     }
@@ -228,11 +235,10 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
 
 exit:
     mbedtls_aes_free(&aes_ctx);
-#ifdef TRIGGER_ENCRYPT_PAYLOAD
-    if (!dir) {
+
+    if ((exp_func == 'e') && (!dir)) {
         js_trig_down();
     }
-#endif
     printf("exit encrypt_payload()\n");
     return ret;
 }
@@ -254,13 +260,9 @@ int LoRaMacCrypto::compute_join_frame_mic(const uint8_t *buffer, uint16_t size,
     int ret = 0;
 
     mbedtls_cipher_init(aes_cmac_ctx);
-#ifdef EXPERIMENT_AES_KEY_SIZE_256
-    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_256_ECB);
-#elif EXPERIMENT_AES_KEY_SIZE_192
-    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_192_ECB);
-#else
-    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB);
-#endif
+
+    // depend on key_size
+    const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(detect_mbedtls_cipher(key_size));
 
     if (NULL != cipher_info) {
         ret = mbedtls_cipher_setup(aes_cmac_ctx, cipher_info);
@@ -268,13 +270,14 @@ int LoRaMacCrypto::compute_join_frame_mic(const uint8_t *buffer, uint16_t size,
             goto exit;
         }
 
-#ifdef EXPERIMENT_AES_KEY_SIZE_256
-        ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key256, key256_length);
-#elif EXPERIMENT_AES_KEY_SIZE_192
-        ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key192, key192_length);
-#else
-        ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key, key_length);
-#endif
+        if (key_size == 256) {
+            ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key256, key256_length);
+        } else if (key_size == 192) {
+            ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key192, key192_length);
+        } else {
+            ret = mbedtls_cipher_cmac_starts(aes_cmac_ctx, key, key_length);
+        }
+
         if (0 != ret) {
             goto exit;
         }
