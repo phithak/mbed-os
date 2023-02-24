@@ -166,7 +166,7 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
                                    uint32_t address, uint8_t dir, uint32_t seq_counter,
                                    uint8_t *enc_buffer)
 {
-    printf("enter encrypt_payload()\n");
+    printf("enter encrypt_payload(), address=%08lx, key_size=%d, msg_sent_count=%d\n", address, key_size, msg_sent_count+1);
     if ((exp_func == 'e') && (!dir)) {
         js_trig_up();
     }
@@ -248,6 +248,7 @@ int LoRaMacCrypto::decrypt_payload(const uint8_t *buffer, uint16_t size,
                                    uint32_t address, uint8_t dir, uint32_t seq_counter,
                                    uint8_t *dec_buffer)
 {
+    printf("enter decrypt_payload()\n");
     return encrypt_payload(buffer, size, key, key_length, address, dir, seq_counter,
                            dec_buffer);
 }
@@ -259,6 +260,7 @@ int LoRaMacCrypto::compute_join_frame_mic(const uint8_t *buffer, uint16_t size,
     uint8_t computed_mic[16] = {};
     int ret = 0;
 
+    printf("enter compute_join_frame_mic(), key_size=%d, mbedtls_cipher_enum=%d\n", key_size, detect_mbedtls_cipher(key_size));
     mbedtls_cipher_init(aes_cmac_ctx);
 
     // depend on key_size
@@ -301,6 +303,8 @@ int LoRaMacCrypto::compute_join_frame_mic(const uint8_t *buffer, uint16_t size,
 
 exit:
     mbedtls_cipher_free(aes_cmac_ctx);
+
+    printf("exit compute_join_frame_mic(), key_size=%d, mbedtls_cipher_enum=%d\n", key_size, detect_mbedtls_cipher(key_size));
     return ret;
 }
 
@@ -310,6 +314,7 @@ int LoRaMacCrypto::decrypt_join_frame(const uint8_t *buffer, uint16_t size,
 {
     int ret = 0;
 
+    printf("enter decrypt_join_frame()\n");
     mbedtls_aes_init(&aes_ctx);
 
     ret = mbedtls_aes_setkey_enc(&aes_ctx, key, key_length);
@@ -342,6 +347,7 @@ int LoRaMacCrypto::compute_skeys_for_join_frame(const uint8_t *key, uint32_t key
     uint8_t *p_dev_nonce = (uint8_t *) &dev_nonce;
     int ret = 0;
 
+    printf("enter compute_skeys_for_join_frame()\n");
     mbedtls_aes_init(&aes_ctx);
 
     ret = mbedtls_aes_setkey_enc(&aes_ctx, key, key_length);
