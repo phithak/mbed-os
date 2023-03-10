@@ -39,6 +39,7 @@ extern int exp_func;        // 'c' = compute_mic(), 'e' = encrypt_payload()
 extern int key_size;        // 128, 192 or 256
 extern int msg_sent_count;  // message counter
 extern int payload_size;    // from 1 to 222
+extern uint32_t used_fcnt;  // for detecting dup fcnt
 
 // Additional AES key size configurations
 uint8_t key256[32] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
@@ -86,8 +87,8 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
                                uint32_t address, uint8_t dir, uint32_t seq_counter,
                                uint32_t *mic)
 {
-    if ((exp_func == 'c') && (!dir)) {
-        printf("enter compute_mic(), msg_sent_count=%d, seq_counter=%lu, size=%u, payload_size=%d, address=%08x\n", msg_sent_count+1, seq_counter, size, payload_size, address);
+    if ((exp_func == 'c') && (!dir) && (seq_counter != used_fcnt)) {
+        printf("enter compute_mic(), msg_sent_count=%d, seq_counter=%lu, size=%u, payload_size=%d, address=%08x, used_fcnt=%lu\n", msg_sent_count+1, seq_counter, size, payload_size, address, used_fcnt);
         js_trig_up();
         t.reset();
         t.start();
@@ -162,10 +163,11 @@ exit:
     mbedtls_cipher_free(aes_cmac_ctx);
 
 
-    if ((exp_func == 'c') && (!dir)) {
+    if ((exp_func == 'c') && (!dir) && (seq_counter != used_fcnt)) {
         t.stop(); 
         js_trig_down();
-        printf("exit compute_mic(), msg_sent_count=%d, duration=%lldus, seq_counter=%lu, size=%u, payload_size=%d, ret=%d, address=%08x\n", msg_sent_count+1, duration_cast<microseconds>(t.elapsed_time()).count(), seq_counter, size, payload_size, ret, address);
+        printf("exit compute_mic(), msg_sent_count=%d, duration=%lldus, seq_counter=%lu, size=%u, payload_size=%d, ret=%d, address=%08x, used_fcnt=%lu\n", msg_sent_count+1, duration_cast<microseconds>(t.elapsed_time()).count(), seq_counter, size, payload_size, ret, address, used_fcnt);
+        used_fcnt = seq_counter;
     }
     return ret;
 }
@@ -175,8 +177,8 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
                                    uint32_t address, uint8_t dir, uint32_t seq_counter,
                                    uint8_t *enc_buffer)
 {
-    if ((exp_func == 'e') && (!dir)) {
-        printf("enter encrypt_payload(), msg_sent_count=%d, seq_counter=%lu, size=%u, payload_size=%d, address=%08x\n", msg_sent_count+1, seq_counter, size, payload_size, address);
+    if ((exp_func == 'e') && (!dir) && (seq_counter != used_fcnt)) {
+        printf("enter encrypt_payload(), msg_sent_count=%d, seq_counter=%lu, size=%u, payload_size=%d, address=%08x, used_fcnt=%lu\n", msg_sent_count+1, seq_counter, size, payload_size, address, used_fcnt);
         js_trig_up();
         t.reset();
         t.start();
@@ -247,10 +249,11 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
 exit:
     mbedtls_aes_free(&aes_ctx);
 
-    if ((exp_func == 'e') && (!dir)) {
+    if ((exp_func == 'e') && (!dir) && (seq_counter != used_fcnt)) {
         t.stop(); 
         js_trig_down();
-        printf("exit encrypt_payload(), msg_sent_count=%d, duration=%lldus, seq_counter=%lu, size=%u, payload_size=%d, ret=%d, address=%08x\n", msg_sent_count+1, duration_cast<microseconds>(t.elapsed_time()).count(), seq_counter, size, payload_size, ret, address);
+        printf("exit encrypt_payload(), msg_sent_count=%d, duration=%lldus, seq_counter=%lu, size=%u, payload_size=%d, ret=%d, address=%08x, used_fcnt=%lu\n", msg_sent_count+1, duration_cast<microseconds>(t.elapsed_time()).count(), seq_counter, size, payload_size, ret, address, used_fcnt);
+        used_fcnt = seq_counter;
     }
     return ret;
 }
