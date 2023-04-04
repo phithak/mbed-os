@@ -34,6 +34,9 @@
 // JouleScope
 #include "joulescope/joulescope_debug.h"
 
+// For core_util_critical_section_enter() and core_util_critical_section_exit();
+//#include "mbed.h"
+
 // External variables from main.cpp
 extern int exp_func;        // 'c' = compute_mic(), 'e' = encrypt_payload()
 extern int key_size;        // 128, 192 or 256
@@ -88,10 +91,7 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
                                uint32_t *mic)
 {
     if ((exp_func == 'c') && (!dir) && (seq_counter != used_fcnt)) {
-        printf("enter compute_mic(), msg_sent_count=%d, seq_counter=%lu, size=%u, payload_size=%d, address=%08x, used_fcnt=%lu\n", msg_sent_count+1, seq_counter, size, payload_size, address, used_fcnt);
-        js_trig_up();
-        t.reset();
-        t.start();
+        printf("enter compute_mic(), msg_sent_count=%d, seq_counter=%lu, size=%u, payload_size=%d, address=%08lx, used_fcnt=%lu\n", msg_sent_count+1, seq_counter, size, payload_size, address, used_fcnt);
     }
 
     uint8_t computed_mic[16] = {};
@@ -137,6 +137,17 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
             goto exit;
         }
 
+        // Start measurement
+        if ((exp_func == 'c') && (!dir) && (seq_counter != used_fcnt)) {
+            printf("__disable_irq()\n");
+            //printf("core_util_critical_section_enter()\n");
+            js_trig_up();
+            //core_util_critical_section_enter();
+            __disable_irq();
+            t.reset();
+            t.start();
+        }
+
         ret = mbedtls_cipher_cmac_update(aes_cmac_ctx, mic_block_b0, sizeof(mic_block_b0));
         if (0 != ret) {
             goto exit;
@@ -155,6 +166,17 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
         *mic = (uint32_t)((uint32_t) computed_mic[3] << 24
                           | (uint32_t) computed_mic[2] << 16
                           | (uint32_t) computed_mic[1] << 8 | (uint32_t) computed_mic[0]);
+
+        // Stop measurement
+        if ((exp_func == 'c') && (!dir) && (seq_counter != used_fcnt)) {
+            t.stop();
+            //core_util_critical_section_exit();
+            __enable_irq();
+            js_trig_down();
+            //printf("core_util_critical_section_exit()\n");
+            printf("__enable_irq()\n");
+        }
+
     } else {
         ret = MBEDTLS_ERR_CIPHER_ALLOC_FAILED;
     }
@@ -162,11 +184,8 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
 exit:
     mbedtls_cipher_free(aes_cmac_ctx);
 
-
     if ((exp_func == 'c') && (!dir) && (seq_counter != used_fcnt)) {
-        t.stop(); 
-        js_trig_down();
-        printf("exit compute_mic(), msg_sent_count=%d, duration=%lldus, seq_counter=%lu, size=%u, payload_size=%d, ret=%d, address=%08x, used_fcnt=%lu\n", msg_sent_count+1, duration_cast<microseconds>(t.elapsed_time()).count(), seq_counter, size, payload_size, ret, address, used_fcnt);
+        printf("exit compute_mic(), msg_sent_count=%d, duration=%lldus, seq_counter=%lu, size=%u, payload_size=%d, ret=%d, address=%08lx, used_fcnt=%lu\n", msg_sent_count+1, duration_cast<microseconds>(t.elapsed_time()).count(), seq_counter, size, payload_size, ret, address, used_fcnt);
         used_fcnt = seq_counter;
     }
     return ret;
@@ -178,9 +197,11 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
                                    uint8_t *enc_buffer)
 {
     if ((exp_func == 'e') && (!dir) && (seq_counter != used_fcnt)) {
-        printf("enter encrypt_payload(), msg_sent_count=%d, seq_counter=%lu, size=%u, payload_size=%d, address=%08x, used_fcnt=%lu\n", msg_sent_count+1, seq_counter, size, payload_size, address, used_fcnt);
+        printf("enter encrypt_payload(), msg_sent_count=%d, seq_counter=%lu, size=%u, payload_size=%d, address=%08lx, used_fcnt=%lu\n", msg_sent_count+1, seq_counter, size, payload_size, address, used_fcnt);
+        printf("__disable_irq()\n");
         js_trig_up();
         t.reset();
+        __disable_irq();
         t.start();
     }
 
@@ -250,9 +271,11 @@ exit:
     mbedtls_aes_free(&aes_ctx);
 
     if ((exp_func == 'e') && (!dir) && (seq_counter != used_fcnt)) {
-        t.stop(); 
+        t.stop();
+        __enable_irq();
         js_trig_down();
-        printf("exit encrypt_payload(), msg_sent_count=%d, duration=%lldus, seq_counter=%lu, size=%u, payload_size=%d, ret=%d, address=%08x, used_fcnt=%lu\n", msg_sent_count+1, duration_cast<microseconds>(t.elapsed_time()).count(), seq_counter, size, payload_size, ret, address, used_fcnt);
+        printf("__enable_irq()\n");
+        printf("exit encrypt_payload(), msg_sent_count=%d, duration=%lldus, seq_counter=%lu, size=%u, payload_size=%d, ret=%d, address=%08lx, used_fcnt=%lu\n", msg_sent_count+1, duration_cast<microseconds>(t.elapsed_time()).count(), seq_counter, size, payload_size, ret, address, used_fcnt);
         used_fcnt = seq_counter;
     }
     return ret;
