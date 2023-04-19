@@ -29,6 +29,8 @@ SPDX-License-Identifier: BSD-3-Clause
 
 #include "LoRaPHY.h"
 
+#include "joulescope/joulescope_debug.h"
+
 #define BACKOFF_DC_1_HOUR       100
 #define BACKOFF_DC_10_HOURS     1000
 #define BACKOFF_DC_24_HOURS     10000
@@ -78,6 +80,7 @@ void LoRaPHY::put_radio_to_sleep()
     _radio->lock();
     _radio->sleep();
     _radio->unlock();
+    js_pulse(3);
 }
 
 void LoRaPHY::put_radio_to_standby()

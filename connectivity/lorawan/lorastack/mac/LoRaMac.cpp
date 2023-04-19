@@ -28,6 +28,8 @@ SPDX-License-Identifier: BSD-3-Clause
 #include "mbed-trace/mbed_trace.h"
 #define TRACE_GROUP "LMAC"
 
+#include "joulescope/joulescope_debug.h"
+
 using namespace events;
 using namespace mbed;
 
@@ -180,6 +182,7 @@ rx_slot_t LoRaMac::get_current_slot(void)
  */
 void LoRaMac::handle_join_accept_frame(const uint8_t *payload, uint16_t size)
 {
+    js_pulse(19);
     uint32_t mic = 0;
     uint32_t mic_rx = 0;
 
@@ -815,6 +818,7 @@ bool LoRaMac::continue_sending_process()
 
 lorawan_status_t LoRaMac::send_join_request()
 {
+    js_pulse(16);
     lorawan_status_t status = LORAWAN_STATUS_OK;
     loramac_mhdr_t mac_hdr;
     loramac_frame_ctrl_t fctrl;
@@ -876,6 +880,7 @@ void LoRaMac::on_backoff_timer_expiry(void)
 
 void LoRaMac::open_rx1_window(void)
 {
+    js_pulse(1);
     Lock lock(*this);
     _demod_ongoing = true;
     _continuous_rx2_window_open = false;
@@ -909,6 +914,7 @@ void LoRaMac::open_rx1_window(void)
 
 void LoRaMac::open_rx2_window()
 {
+    js_pulse(18);
     if (_demod_ongoing) {
         tr_info("RX1 Demodulation ongoing, skip RX2 window opening");
         return;

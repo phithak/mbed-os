@@ -89,6 +89,7 @@ int LoRaMacCrypto::compute_mic(const uint8_t *buffer, uint16_t size,
 {
     if ((exp_func == 'c') && (!dir) && (seq_counter != used_fcnt)) {
         printf("enter compute_mic(), msg_sent_count=%d, seq_counter=%lu, size=%u, payload_size=%d, address=%08x, used_fcnt=%lu\n", msg_sent_count+1, seq_counter, size, payload_size, address, used_fcnt);
+        js_pulse(1);
         js_trig_up();
         t.reset();
         t.start();
@@ -177,6 +178,7 @@ int LoRaMacCrypto::encrypt_payload(const uint8_t *buffer, uint16_t size,
                                    uint32_t address, uint8_t dir, uint32_t seq_counter,
                                    uint8_t *enc_buffer)
 {
+    js_pulse(2);
     if ((exp_func == 'e') && (!dir) && (seq_counter != used_fcnt)) {
         printf("enter encrypt_payload(), msg_sent_count=%d, seq_counter=%lu, size=%u, payload_size=%d, address=%08x, used_fcnt=%lu\n", msg_sent_count+1, seq_counter, size, payload_size, address, used_fcnt);
         js_trig_up();
@@ -271,6 +273,7 @@ int LoRaMacCrypto::compute_join_frame_mic(const uint8_t *buffer, uint16_t size,
                                           const uint8_t *key, uint32_t key_length,
                                           uint32_t *mic)
 {
+    js_pulse(3);
     uint8_t computed_mic[16] = {};
     int ret = 0;
 
@@ -324,6 +327,7 @@ int LoRaMacCrypto::decrypt_join_frame(const uint8_t *buffer, uint16_t size,
                                       const uint8_t *key, uint32_t key_length,
                                       uint8_t *dec_buffer)
 {
+    js_pulse(4);
     int ret = 0;
 
     mbedtls_aes_init(&aes_ctx);
@@ -354,6 +358,7 @@ int LoRaMacCrypto::compute_skeys_for_join_frame(const uint8_t *key, uint32_t key
                                                 const uint8_t *app_nonce, uint16_t dev_nonce,
                                                 uint8_t *nwk_skey, uint8_t *app_skey)
 {
+    js_pulse(5);
     uint8_t nonce[16];
     uint8_t *p_dev_nonce = (uint8_t *) &dev_nonce;
     int ret = 0;
